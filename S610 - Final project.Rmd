@@ -1,0 +1,147 @@
+---
+title: "S610 - Final Project"
+author: "Gokcen Buyukbas, Jared Roush"
+date: "12/9/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(usedist) #dist_make(data matrix, fcn)
+library(plot3D)
+library(plot3Drgl)
+library(scatterplot3d) 
+library(rgl) #scatter3d()
+source("Useful_functions.R")
+```
+
+## Isomap function
+## Takes a data set, a localization parameter eps, desired dimension d, 
+##    returns: coordinates of a representation  in d-dim, 
+
+
+```{r}
+isomap = function(X, eps=NULL, k=NULL, d){
+  n = nrow(X)
+  Delta_E = as.matrix(dist(X, diag = TRUE, upper = TRUE)) #Find pairwise distances 
+  if (eps != 'NULL'){
+    Delta_E[Delta_E  > eps] = Inf # Replace values greater than eps with infinity
+  }
+  Delta_G = Delta_E
+  ## Find the shortest path between the points i&j in the epsilon graph
+  E = matrix(0,nrow=n,ncol=n) 
+  m = 1
+  while (m < n-1){
+    for (i in 1:n){
+      for (j in 1:n){
+        E[i,j] = min(Delta_G[i,]+Delta_G[,j])
+      }
+    }
+    Delta_G = E
+    m = 2*m
+  }
+  R0 = cmdscale(Delta_G, d, eig=TRUE)$points
+  for(i in 1:50){
+    R0 = mds.guttman.eq(R0, Delta_G)
+  }
+  R1 = R0
+  return(R1)
+}
+```
+
+
+
+### Examples ###
+
+# Swiss Roll
+```{r}
+n0 = 300
+
+swissroll = data.frame(x = numeric(n0),
+                       y = numeric(n0),
+                       z = numeric(n0))
+for (i in 1:n0){
+  u = runif(1, 0,1)
+  v = runif(1, 0,1)
+  swissroll$x[i] = 3^u*cos(8*u)
+  swissroll$y[i] = 3^u*sin(8*u)
+  swissroll$z[i] = v
+}
+```
+```{r}
+
+plot(swissroll)
+
+scatterplot3d(swissroll$z, swissroll$x, swissroll$y)
+scatter3d(swissroll$x, swissroll$y, swissroll$z, asp=1)
+
+swiss2 = isomap(swissroll, eps=0.7, d=2)
+plot(swiss2)
+
+```
+
+# Rectangular annulus
+
+```{r}
+n1 = 100
+R <- matrix(0,nrow=1,ncol=2)
+for (i in 1:n1) {
+  x1 <- runif(1,min=0,max=3)
+  y1 <- runif(1,min=0,max=1)
+  x2 <- runif(1,min=0,max=1)
+  y2 <- runif(1,min=1,max=3)
+  x3 <- runif(1,min=2,max=3)
+  y3 <- runif(1,min=1,max=3)
+  x4 <- runif(1,min=0,max=3)
+  y4 <- runif(1,min=3,max=4)
+  R <- rbind(R,c(x1,y1),c(x2,y2),c(x3,y3),c(x4,y4))
+}
+plot(R, main="Original data")
+
+R1 = isomap(R, eps=0.5, d=2)
+plot(R1)
+```
+
+# Spiral
+
+```{r}
+n2 = 200
+S = data.frame(x = numeric(n2),
+               y = numeric(n2),
+               z = numeric(n2))
+for (i in 1:n2){
+  t = runif(1, 0, 1)
+  S$x[i] = cos(8*t)
+  S$y[i] = sin(8*t)
+  S$z[i] = t
+}
+
+plot(S)
+scatterplot3d(S)
+
+S2 = isomap(S, eps=0.5, d=2)
+plot(S2)
+```
+
+# On Torus
+```{r}
+R=1
+r=0.5
+n3 = 200
+Torus = data.frame(x = numeric(n3),
+                   y = numeric(n3),
+                   z = numeric(n3))
+for (i in 1:n3){
+  u = runif(1, 0, pi)
+  v = runif(1, 0, pi)
+  Torus$x[i] = (R+r*cos(u))*cos(v)
+  Torus$y[i] = (R+r*cos(u))*sin(v)
+  Torus$z[i] = r*sin(u)
+}
+
+scatterplot3d(Torus)
+plot(Torus)
+
+T2 = isomap(Torus, eps=0.5, 2)
+plot(T2)
+```
