@@ -15,6 +15,9 @@ library(rgl) #scatter3d()
 source("Useful_functions.R")
 ```
 
+$\sigma(x) = $
+
+
 ## Isomap function
 ## Takes a data set, a localization parameter eps, desired dimension d, 
 ##    returns: coordinates of a representation  in d-dim, 
