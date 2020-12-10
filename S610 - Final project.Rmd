@@ -5,19 +5,13 @@ date: "12/9/2020"
 output: html_document
 ---
 #Latex needed
-\documentclass[addpoints, 11pt]{article}
-\usepackage{amsmath}
-\usepackage{amssymb}
+ Let $X=[x_{ij}]$ denote the $n \times d$ configuration matrix associated with $x_1,\dots{},x_n\in \mathbb{R}^d$. Let\\
 
-\begin{document}
-	
-\par Let $X=[x_{ij}]$ denote the $n \times d$ configuration matrix associated with $x_1,\dots{},x_n\in \mathbb{R}^d$. Let\\
 $$d_{ij}=d_{ij}(X)=\|x_i-x_j\|=\left[ \sum_{l=1}^{d}(x_{il}-x_{jl})^2 \right]^{1/2}$$
-\par denote the Euclidean distance between $x_i$ and $x_j$. Gien an nxn dissimilarity matrix $\Delta=[\delta_{ij}]$, the weighted raw stress criterion is\\
-$$\sigma(X)=\sum_{i\leftarrowrightarrow j}w_{ij} \left[ d_{ij}(X)-\delta_{ij}  \right]^2=\frac{1}{2}\sum_{i,j=1}^n \sum_{i\leftarrowrightarrow j}w_{ij} \left[ d_{ij}(X)-\delta_{ij}  \right]^2$$
-\par where $w_{ij}=w_{ji}\geq 0$ is the weight assigned to approximating $\delta_{ij}=\delta_{ji}$ with $d_{ij}=d_{ji}$
+denote the Euclidean distance between $x_i$ and $x_j$. Gien an nxn dissimilarity matrix $\Delta=[\delta_{ij}]$, the weighted raw stress criterion is\\
+$$\sigma(X)=\sum_{i\leftarrow \rightarrow j}w_{ij} \left[ d_{ij}(X)-\delta_{ij}  \right]^2=\frac{1}{2}\sum_{i,j=1}^nw_{ij} \left[ d_{ij}(X)-\delta_{ij}  \right]^2$$
 
-\end{document}
+ where $w_{ij}=w_{ji}\geq 0$ is the weight assigned to approximating $\delta_{ij}=\delta_{ji}$ with $d_{ij}=d_{ji}$
 
 
 
