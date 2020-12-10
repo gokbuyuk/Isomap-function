@@ -95,6 +95,8 @@ isomap = function(data, nbhd_size=NULL, method='eps', embed='kruskal', d, iter=3
 ## Examples
 
 ### Spiral in 2d
+$\phi(u)=(3^u \cos(8u), 3^u \sin(8u))$ for $0 \leq u \leq 1$
+
 ```{r}
 n0 = 300
 set.seed(111)
@@ -144,29 +146,7 @@ plot(seq(1,10), R1$cumulative_variances[1:10], asp=1, ylim=c(0,1), pch=20, main=
 ```
 
 
-# Half circle
 
-```{r}
-n2 = 200
-S = data.frame(x = numeric(n2),
-               y = numeric(n2),
-               z = numeric(n2))
-for (i in 1:n2){
-  t = runif(1, 0, 1)
-  eps = 0.01 #noise
-  S$x[i] = cos(2*t)+rnorm(1,0,eps)
-  S$y[i] = sin(2*t)+rnorm(1,0,eps)
-  S$z[i] = rnorm(1,0,eps)
-}
-
-plot(S, asp=1, pch=20)
-
-S1 = isomap(S, nbhd_size=0.4, d=2, embed='kruskal', method='eps')
-plot(S1$points, asp=1, pch=20, main="2-D representation of data near Circle")
-plot(seq(1,10), ylim=c(0,1), S1$cumulative_variances[1:10], pch=20, main="Preserved variances vs dimension (cumulative)",
-     xlab="Dimension",
-     ylab="Percentage")
-```
 
 # Circle with noise
 
@@ -195,6 +175,7 @@ plot(seq(1,10), ylim=c(0,1), S1$cumulative_variances[1:10], pch=20, main="Preser
 ```
 
 # On Torus
+$\tau(u,v)= ((R+r\cos(u))\cos(v),(R+r\cos(u))\sin(v), r\sin(u))$ for $0\leq u \leq \pi$ and $0\leq v \leq \frac{\pi}{2}$
 ```{r}
 R=1
 r=0.5
