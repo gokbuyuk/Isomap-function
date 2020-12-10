@@ -6,7 +6,7 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo=FALSE,
+knitr::opts_chunk$set(echo=TRUE,
                cache=TRUE, autodep=TRUE, cache.comments=FALSE,
                message=FALSE, warning=FALSE)
 library(usedist) #dist_make(data matrix, fcn)
@@ -27,17 +27,20 @@ Find meaningful low dimensional structures hidden in high dimensional observatio
 
 ## Method:
 Given: Feature vectors $x_1,\dots,x_n \in M\subset \mathbb{R}^q$, a neighborhood size, $\epsilon$, and a target dimension d.
+
 1. Construct an $\epsilon$-neighborhood of K-nearest neighbor graph of the observed feature vectors. Weight the edge between $x_i\leftarrow \rightarrow x_j$ by $\left| |x_i-x_j|\right|$.
+
 2.Compute the dissimilarity matrix $\Delta=[\delta_{jk}]$ where $\delta_{jk}$ is the shortest path distance on the graph between the vertices $x_j$ and $x_k$. The key idea that underlies Isomap is that shortest path distances on a locally connected graph apprximate Riemannian distances on the underlying Riemannian manifold $M$.
+
 3. Embed $\Delta$ in $\mathbb{R}^d$. Traditionally, Isomap embeds by classical multidimensional scaling (CMDS); however, if the goal is to approximate the shortest path distance with Euclidean distance, then a different embedding may be preferred, e.g. by minimizing Kruskal's raw stress criterion.
 
-Let $X=[x_{ij}]$ denote the $n \times d$ configuration matrix associated with $x_1,\dots{},x_n\in \mathbb{R}^d$. Let\\
+Let $X=[x_{ij}]$ denote the $n \times d$ configuration matrix associated with $x_1,\dots{},x_n\in \mathbb{R}^d$. Let
 
 $$d_{ij}=d_{ij}(X)=\|x_i-x_j\|=\left[ \sum_{l=1}^{d}(x_{il}-x_{jl})^2 \right]^{1/2}$$
-denote the Euclidean distance between $x_i$ and $x_j$. Gien an nxn dissimilarity matrix $\Delta=[\delta_{ij}]$, the weighted raw stress criterion is\\
+denote the Euclidean distance between $x_i$ and $x_j$. Gien an nxn dissimilarity matrix $\Delta=[\delta_{ij}]$, the weighted raw stress criterion is
 $$\sigma(X)=\sum_{i\leftarrow \rightarrow j}w_{ij} \left[ d_{ij}(X)-\delta_{ij}  \right]^2=\frac{1}{2}\sum_{i,j=1}^nw_{ij} \left[ d_{ij}(X)-\delta_{ij}  \right]^2$$
 
- where $w_{ij}=w_{ji}\geq 0$ is the weight assigned to approximating $\delta_{ij}=\delta_{ji}$ with $d_{ij}=d_{ji}$
+ where $w_{ij}=w_{ji}\geq 0$ is the weight assigned to approximating $\delta_{ij}=\delta_{ji}$ with $d_{ij}=d_{ji}$.
 
 ```{r, echo=TRUE}
 
@@ -110,12 +113,15 @@ for (i in 1:n0){
 
 plot(swissroll, asp=1, pch=20)
 
-scatterplot3d(swissroll$x, swissroll$y, swissroll$z, pch=20 )
+#scatterplot3d(swissroll$x, swissroll$y, swissroll$z, pch=20 )
 #scatter3d(swissroll$x, swissroll$y, swissroll$z, asp=1)
 
 swiss2 = isomap(data=swissroll, nbhd_size=0.6, d=2)
-plot(swiss2$points, pch=20)
-plot(seq(1,10), swiss2$cumulative_variances[1:10], ylim=c(0,1), pch=20, main="Preserved variances vs dimension (cumulative)")
+plot(swiss2$points, pch=20, main="Swiss Roll")
+# plot(seq(1,10), swiss2$cumulative_variances[1:10], ylim=c(0,1), pch=20,
+#      main="Preserved variances vs dimension (cumulative)",
+#      xlab="Dimension",
+#      ylab="Percentage")
 ```
 
 ### Rectangular annulus
@@ -138,7 +144,9 @@ plot(R, main="Original data", pch=20)
 
 R1 = isomap(R, nbhd_size = 0.5, d=2, embed = 'kruskal')
 plot(R1$points, pch=20, main="2-D representation of Rectangular annulus")
-plot(seq(1,10), R1$cumulative_variances[1:10], ylim=c(0,1), pch=20, main="Preserved variances vs dimension (cumulative)")
+plot(seq(1,10), R1$cumulative_variances[1:10], ylim=c(0,1), pch=20, main="Preserved variances vs dimension (cumulative)",
+     xlab="Dimension",
+     ylab="Percentage"))
 ```
 
 # Circle with noise
@@ -160,7 +168,9 @@ plot(S, asp=1, pch=20)
 
 S1 = isomap(S, nbhd_size=0.5, d=2, embed='kruskal', method='eps')
 plot(S1$points, asp=1, pch=20, main="2-D representation of data near Circle")
-plot(seq(1,10), ylim=c(0,1), S1$cumulative_variances[1:10], pch=20, main="Preserved variances vs dimension (cumulative)")
+plot(seq(1,10), ylim=c(0,1), S1$cumulative_variances[1:10], pch=20, main="Preserved variances vs dimension (cumulative)",
+     xlab="Dimension",
+     ylab="Percentage"))
 ```
 
 # On Torus
@@ -184,7 +194,9 @@ plot(Torus, pch=20)
 
 T2 = isomap(Torus, nbhd_size=0.5, d=2, embed='kruskal')
 plot(T2$points, asp=1, pch=20, main="2-D representation of data on Torus")
-plot(seq(1,10), ylim=c(0,1), T2$cumulative_variances[1:10], pch=20, main="Preserved variances vs dimension (cumulative)")
+plot(seq(1,10), ylim=c(0,1), T2$cumulative_variances[1:10], pch=20, main="Preserved variances vs dimension (cumulative)",
+     xlab="Dimension",
+     ylab="Percentage"))
 ```
 
 
