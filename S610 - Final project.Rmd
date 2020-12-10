@@ -4,8 +4,34 @@ author: "Gokcen Buyukbas, Jared Roush"
 date: "12/9/2020"
 output: html_document
 ---
-#Latex needed
- Let $X=[x_{ij}]$ denote the $n \times d$ configuration matrix associated with $x_1,\dots{},x_n\in \mathbb{R}^d$. Let\\
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo=FALSE,
+               cache=TRUE, autodep=TRUE, cache.comments=FALSE,
+               message=FALSE, warning=FALSE)
+library(usedist) #dist_make(data matrix, fcn)
+library(plot3D)
+library(plot3Drgl)
+library(scatterplot3d) 
+library(viridis)
+library(rgl) #scatter3d()
+source("Useful_functions.R")
+source("Isomapfunction.R")
+set.seed(1234)
+```
+
+# Isomap 
+
+## Goal:
+Find meaningful low dimensional structures hidden in high dimensional observations.
+
+## Method:
+Given: Feature vectors $x_1,\dots,x_n \in M\subset \mathbb{R}^q$, a neighborhood size, $\epsilon$, and a target dimension d.
+1. Construct an $\epsilon$-neighborhood of K-nearest neighbor graph of the observed feature vectors. Weight the edge between $x_i\leftarrow \rightarrow x_j$ by $\left| |x_i-x_j|\right|$.
+2.Compute the dissimilarity matrix $\Delta=[\delta_{jk}]$ where $\delta_{jk}$ is the shortest path distance on the graph between the vertices $x_j$ and $x_k$. The key idea that underlies Isomap is that shortest path distances on a locally connected graph apprximate Riemannian distances on the underlying Riemannian manifold $M$.
+3. Embed $\Delta$ in $\mathbb{R}^d$. Traditionally, Isomap embeds by classical multidimensional scaling (CMDS); however, if the goal is to approximate the shortest path distance with Euclidean distance, then a different embedding may be preferred, e.g. by minimizing Kruskal's raw stress criterion.
+
+Let $X=[x_{ij}]$ denote the $n \times d$ configuration matrix associated with $x_1,\dots{},x_n\in \mathbb{R}^d$. Let\\
 
 $$d_{ij}=d_{ij}(X)=\|x_i-x_j\|=\left[ \sum_{l=1}^{d}(x_{il}-x_{jl})^2 \right]^{1/2}$$
 denote the Euclidean distance between $x_i$ and $x_j$. Gien an nxn dissimilarity matrix $\Delta=[\delta_{ij}]$, the weighted raw stress criterion is\\
@@ -13,32 +39,23 @@ $$\sigma(X)=\sum_{i\leftarrow \rightarrow j}w_{ij} \left[ d_{ij}(X)-\delta_{ij} 
 
  where $w_{ij}=w_{ji}\geq 0$ is the weight assigned to approximating $\delta_{ij}=\delta_{ji}$ with $d_{ij}=d_{ji}$
 
+```{r, echo=TRUE}
 
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-library(usedist) #dist_make(data matrix, fcn)
-library(plot3D)
-library(plot3Drgl)
-library(scatterplot3d) 
-library(rgl) #scatter3d()
-source("Useful_functions.R")
-```
-
-$\sigma(x) = $
-
-
-## Isomap function
-## Takes a data set, a localization parameter eps, desired dimension d, 
-##    returns: coordinates of a representation  in d-dim, 
-
-
-```{r}
-isomap = function(X, eps=NULL, k=NULL, d){
+isomap = function(data, nbhd_size=NULL, method='eps', embed='kruskal', d, iter=30){
+  # method = 'eps' for eps-neighborhood graph 
+  #         'knn' for k-nearest neighbors graph
+  # embed = 'cmds' for classical multidimensional scaling
+  #       = 'kruskal' for raw stress criterion, iter= number of iterations for the optimization
+  X = data
   n = nrow(X)
-  Delta_E = as.matrix(dist(X, diag = TRUE, upper = TRUE)) #Find pairwise distances 
-  if (eps != 'NULL'){
+  Delta_E = as.matrix(dist(X, diag = TRUE, upper = TRUE)) #Find pairwise straight line distances 
+  if (method == 'eps'){
+    eps = nbhd_size
     Delta_E[Delta_E  > eps] = Inf # Replace values greater than eps with infinity
+  }
+  if (method == 'knn'){
+    k = nbhd_size
+    ## work in progress
   }
   Delta_G = Delta_E
   ## Find the shortest path between the points i&j in the epsilon graph
@@ -53,20 +70,28 @@ isomap = function(X, eps=NULL, k=NULL, d){
     Delta_G = E
     m = 2*m
   }
-  R0 = cmdscale(Delta_G, d, eig=TRUE)$points
-  for(i in 1:50){
-    R0 = mds.guttman.eq(R0, Delta_G)
+  # save a list of coordinates of the configuration contructed by CMDS and the eigenvalues corresponding to each dimension
+  Z = cmdscale(Delta_G, d, eig=TRUE) 
+  Z0 = Z$points
+  if (embed == 'kruskal'){
+    for (j in 1:iter){
+      Z0 = mds.guttman.eq(Z0,Delta_G) #Gutmann majorization to improve the embedding
+    } 
   }
-  R1 = R0
-  return(R1)
+  euc_dim = sum(Z$eig >0) # Find the number of dimensions required to preserve the euclidean structure of Delta_G
+  cumulative_variances = seq(1, euc_dim)
+  for (i in 1:euc_dim){
+    cumulative_variances[i] = sum(Z$eig[1:i])/sum(abs(Z$eig))
+  }
+  output = list(points=Z0, preserved_variance=cumulative_variances[d], cumulative_variances = cumulative_variances) 
+  return(output)
 }
 ```
 
 
+## Examples
 
-### Examples ###
-
-# Swiss Roll
+### Swiss Roll
 ```{r}
 n0 = 300
 
@@ -75,7 +100,7 @@ swissroll = data.frame(x = numeric(n0),
                        z = numeric(n0))
 for (i in 1:n0){
   u = runif(1, 0,1)
-  v = runif(1, 0,1)
+  v = rnorm(1, 0,0.08)
   swissroll$x[i] = 3^u*cos(8*u)
   swissroll$y[i] = 3^u*sin(8*u)
   swissroll$z[i] = v
@@ -83,20 +108,20 @@ for (i in 1:n0){
 ```
 ```{r}
 
-plot(swissroll)
+plot(swissroll, asp=1, pch=20)
 
-scatterplot3d(swissroll$z, swissroll$x, swissroll$y)
-scatter3d(swissroll$x, swissroll$y, swissroll$z, asp=1)
+scatterplot3d(swissroll$x, swissroll$y, swissroll$z, pch=20 )
+#scatter3d(swissroll$x, swissroll$y, swissroll$z, asp=1)
 
-swiss2 = isomap(swissroll, eps=0.7, d=2)
-plot(swiss2)
-
+swiss2 = isomap(data=swissroll, nbhd_size=0.6, d=2)
+plot(swiss2$points, pch=20)
+plot(seq(1,10), swiss2$cumulative_variances[1:10], ylim=c(0,1), pch=20, main="Preserved variances vs dimension (cumulative)")
 ```
 
-# Rectangular annulus
+### Rectangular annulus
 
 ```{r}
-n1 = 100
+n1 = 150
 R <- matrix(0,nrow=1,ncol=2)
 for (i in 1:n1) {
   x1 <- runif(1,min=0,max=3)
@@ -109,13 +134,14 @@ for (i in 1:n1) {
   y4 <- runif(1,min=3,max=4)
   R <- rbind(R,c(x1,y1),c(x2,y2),c(x3,y3),c(x4,y4))
 }
-plot(R, main="Original data")
+plot(R, main="Original data", pch=20)
 
-R1 = isomap(R, eps=0.5, d=2)
-plot(R1)
+R1 = isomap(R, nbhd_size = 0.5, d=2, embed = 'kruskal')
+plot(R1$points, pch=20, main="2-D representation of Rectangular annulus")
+plot(seq(1,10), R1$cumulative_variances[1:10], ylim=c(0,1), pch=20, main="Preserved variances vs dimension (cumulative)")
 ```
 
-# Spiral
+# Circle with noise
 
 ```{r}
 n2 = 200
@@ -124,37 +150,54 @@ S = data.frame(x = numeric(n2),
                z = numeric(n2))
 for (i in 1:n2){
   t = runif(1, 0, 1)
-  S$x[i] = cos(8*t)
-  S$y[i] = sin(8*t)
-  S$z[i] = t
+  eps = 0.01 #noise
+  S$x[i] = cos(8*t)+rnorm(1,0,eps)
+  S$y[i] = sin(8*t)+rnorm(1,0,eps)
+  S$z[i] = rnorm(1,0,eps)
 }
 
-plot(S)
-scatterplot3d(S)
+plot(S, asp=1, pch=20)
 
-S2 = isomap(S, eps=0.5, d=2)
-plot(S2)
+S1 = isomap(S, nbhd_size=0.5, d=2, embed='kruskal', method='eps')
+plot(S1$points, asp=1, pch=20, main="2-D representation of data near Circle")
+plot(seq(1,10), ylim=c(0,1), S1$cumulative_variances[1:10], pch=20, main="Preserved variances vs dimension (cumulative)")
 ```
 
 # On Torus
 ```{r}
 R=1
 r=0.5
-n3 = 200
+n3 = 300
 Torus = data.frame(x = numeric(n3),
                    y = numeric(n3),
                    z = numeric(n3))
 for (i in 1:n3){
   u = runif(1, 0, pi)
-  v = runif(1, 0, pi)
+  v = runif(1, 0, pi/2)
   Torus$x[i] = (R+r*cos(u))*cos(v)
   Torus$y[i] = (R+r*cos(u))*sin(v)
   Torus$z[i] = r*sin(u)
 }
 
-scatterplot3d(Torus)
-plot(Torus)
+scatterplot3d(Torus, pch=20)
+plot(Torus, pch=20)
 
-T2 = isomap(Torus, eps=0.5, 2)
-plot(T2)
+T2 = isomap(Torus, nbhd_size=0.5, d=2, embed='kruskal')
+plot(T2$points, asp=1, pch=20, main="2-D representation of data on Torus")
+plot(seq(1,10), ylim=c(0,1), T2$cumulative_variances[1:10], pch=20, main="Preserved variances vs dimension (cumulative)")
 ```
+
+
+# References:
+1. M. Bernstein, V. de Silva, J. C. Langford, and J. B. Tenenbaum.
+Graph approximations to geodesics on embedded manifolds.
+https://web.mit.edu/cocosci/isomap/BdSLT.pdf, December 20, 2000.
+
+2. J. B. Kruskal. Multidimensional scaling by optimizing goodness of fit to a nonmetric
+hypothesis. Psychometrika, 29:1{27, 1964.
+
+3. J. B. Tenenbaum, V. de Silva, and J. C. Langford. A global geometric framework
+for nonlinear dimensionality reduction. Science, 290:2319{2323, 2000.
+
+4. Rehabilitating Isomap: Euclidean Representation of Geodesic Structure
+Michael W. Trosset, Gokcen Buyukbas, 	arXiv:2006.10858 (preprint)
