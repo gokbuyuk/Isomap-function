@@ -15,8 +15,8 @@ library(plot3Drgl)
 library(scatterplot3d) 
 library(viridis)
 library(rgl) #scatter3d()
-source("Useful_functions.R")
-source("Isomapfunction.R")
+source("Useful_functions.R") # From S675
+source("Isomapfunction.R") # source to the function definition
 set.seed(1234)
 ```
 
@@ -94,35 +94,29 @@ isomap = function(data, nbhd_size=NULL, method='eps', embed='kruskal', d, iter=3
 
 ## Examples
 
-### Swiss Roll
+### Spiral in 2d
 ```{r}
 n0 = 300
-
-swissroll = data.frame(x = numeric(n0),
-                       y = numeric(n0),
-                       z = numeric(n0))
+set.seed(111)
+spiral = data.frame(x = numeric(n0),
+                       y = numeric(n0))
 for (i in 1:n0){
   u = runif(1, 0,1)
-  v = rnorm(1, 0,0.05)
-  swissroll$x[i] = 3^u*cos(8*u)
-  swissroll$y[i] = 3^u*sin(8*u)
-  swissroll$z[i] = v
+  spiral$x[i] = 3^u*cos(8*u)
+  spiral$y[i] = 3^u*sin(8*u)
 }
+plot(spiral, asp=1, pch=20)
 ```
 ```{r}
-
-plot(swissroll, asp=1, pch=20)
-
-#scatterplot3d(swissroll$x, swissroll$y, swissroll$z, pch=20 )
-#scatter3d(swissroll$x, swissroll$y, swissroll$z, asp=1)
-
-swiss2 = isomap(data=swissroll, nbhd_size=0.6, d=2)
-plot(swiss2$points, pch=20, main="Swiss Roll")
-# plot(seq(1,10), swiss2$cumulative_variances[1:10], ylim=c(0,1), pch=20,
-#      main="Preserved variances vs dimension (cumulative)",
-#      xlab="Dimension",
-#      ylab="Percentage")
+spiral2 = isomap(data=spiral, nbhd_size=0.4, d=2)
+plot(spiral2$points, pch=20, main="Spiral", asp=1)
+plot(seq(1,5), spiral2$cumulative_variances[1:5], ylim=c(0,1), pch=20,
+      main="Preserved variances vs dimension (cumulative)",
+      xlab="Dimension",
+      ylab="Percentage")
 ```
+
+
 
 ### Rectangular annulus
 
@@ -228,12 +222,12 @@ plot(seq(1,10), ylim=c(0,1), T2$cumulative_variances[1:10], pch=20, main="Preser
 
 
 # References:
-1. J. B. Kruskal. Multidimensional scaling by optimizing goodness of fit to a nonmetric
-hypothesis. Psychometrika, 29:1{27, 1964.
-
-2. M. Bernstein, V. de Silva, J. C. Langford, and J. B. Tenenbaum.
+1. M. Bernstein, V. de Silva, J. C. Langford, and J. B. Tenenbaum.
 Graph approximations to geodesics on embedded manifolds.
 https://web.mit.edu/cocosci/isomap/BdSLT.pdf, December 20, 2000.
+
+2. J. B. Kruskal. Multidimensional scaling by optimizing goodness of fit to a nonmetric
+hypothesis. Psychometrika, 29:1{27, 1964.
 
 3. J. B. Tenenbaum, V. de Silva, and J. C. Langford. A global geometric framework
 for nonlinear dimensionality reduction. Science, 290:2319{2323, 2000.
