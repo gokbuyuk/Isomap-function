@@ -1,8 +1,10 @@
 ---
-title: "S610 - Final Project"
+title: "S610-Final_Project_pdf"
 author: "Gokcen Buyukbas, Jared Roush"
 date: "12/9/2020"
-output: html_document
+output:
+  html_document:
+    df_print: paged
 ---
 
 ```{r setup, include=FALSE}
@@ -13,26 +15,29 @@ library(usedist) #dist_make(data matrix, fcn)
 library(plot3D)
 library(plot3Drgl)
 library(scatterplot3d) 
-library(viridis)
 library(rgl) #scatter3d()
 source("Useful_functions.R") # From S675
-source("Isomapfunction.R") # source to the function definition
 set.seed(1234)
 ```
 
-# Isomap 
+# Introduction   
+
+Manifold learning techniques for nonlinear dimension reduction assume that high-dimensional feature vectors lie on a low-dimensional manifold, then attempt to exploit manifold structure to obtain useful low-dimensional Euclidean representations of the data. 
+Isomap, a seminal manifold learning technique, is an elegant synthesis of two simple ideas: the approximation of Riemannian distances with shortest path distances on a graph that localizes manifold structure, and the approximation of shortest path distances with Euclidean distances by multidimensional scaling. 
+Therefore, Isomap constructs a Euclidean representation of the geodesic structure (shortest distance on the manifold that the data lies on or near) that is unique up to rigid motion (translation, rotation).
+
 
 ## Goal:
 Find meaningful low dimensional structures hidden in high dimensional observations.
 
 ## Method:
-Given: Feature vectors $x_1,\dots,x_n \in M\subset \mathbb{R}^q$, a neighborhood size, $\epsilon$, and a target dimension d.
+Given: Feature vectors $x_1,\dots,x_n \in M\subset \mathbb{R}^q$, a neighborhood size, $\epsilon$, and a target dimension d. [1][5]
 
-1. Construct an $\epsilon$-neighborhood of K-nearest neighbor graph of the observed feature vectors. Weight the edge between $x_i\leftarrow \rightarrow x_j$ by $\left| |x_i-x_j|\right|$.
+1. Construct an $\epsilon$-neighborhood of the observed feature vectors. Weight the edge between $x_i\leftarrow \rightarrow x_j$ by $\left| |x_i-x_j|\right|$.
 
 2. Compute the dissimilarity matrix $\Delta=[\delta_{jk}]$ where $\delta_{jk}$ is the shortest path distance on the graph between the vertices $x_j$ and $x_k$. The key idea that underlies Isomap is that shortest path distances on a locally connected graph apprximate Riemannian distances on the underlying Riemannian manifold $M$.
 
-3. Embed $\Delta$ in $\mathbb{R}^d$. Traditionally, Isomap embeds by classical multidimensional scaling (CMDS); however, if the goal is to approximate the shortest path distance with Euclidean distance, then a different embedding may be preferred, e.g. by minimizing Kruskal's raw stress criterion.
+3. Embed $\Delta$ in $\mathbb{R}^d$. Traditionally, Isomap embeds by classical multidimensional scaling (CMDS); however, if the goal is to approximate the shortest path distance with Euclidean distance, then a different embedding may be preferred, e.g. by minimizing Kruskal's raw stress criterion [2].
 
 Let $X=[x_{ij}]$ denote the $n \times d$ configuration matrix associated with $x_1,\dots{},x_n\in \mathbb{R}^d$. Let
 
@@ -40,25 +45,47 @@ $$d_{ij}=d_{ij}(X)=\|x_i-x_j\|=\left[ \sum_{l=1}^{d}(x_{il}-x_{jl})^2 \right]^{1
 denote the Euclidean distance between $x_i$ and $x_j$. Given an $n\times n$ dissimilarity matrix $\Delta=[\delta_{ij}]$, the weighted raw stress criterion is
 $$\sigma(X)=\sum_{i\leftarrow \rightarrow j}w_{ij} \left[ d_{ij}(X)-\delta_{ij}  \right]^2=\frac{1}{2}\sum_{i,j=1}^nw_{ij} \left[ d_{ij}(X)-\delta_{ij}  \right]^2$$
 
- where $w_{ij}=w_{ji}\geq 0$ is the weight assigned to approximating $\delta_{ij}=\delta_{ji}$ with $d_{ij}=d_{ji}$.
+ where $w_{ij}=w_{ji}\geq 0$ is the weight assigned to approximating $\delta_{ij}=\delta_{ji}$ with $d_{ij}=d_{ji}$. [4]
+
+## Helper functions [4]
+```{r}
+mds.guttman.eq <- function(X,Delta) {
+  #
+  # Guttman transform with equal weights
+  #
+  d <- as.vector(as.dist(Delta))/as.vector(dist(X))
+  n <- nrow(X)
+  Delta <- matrix(1:n,nrow=n,ncol=n)
+  i <- as.vector(as.dist(Delta))
+  j <- as.vector(as.dist(t(Delta)))
+  Y <- matrix(0,nrow=n,ncol=ncol(X))
+  for (k in 1:length(d)) {
+    v <- X[i[k],]-X[j[k],]
+    v <- d[k]*v
+    Y[i[k],] <- Y[i[k],]+v
+    Y[j[k],] <- Y[j[k],]-v
+  }
+  return(Y/n)
+}
+```
+
 
 ```{r, echo=TRUE}
-
-isomap = function(data, nbhd_size=NULL, method='eps', embed='kruskal', d, iter=30){
+isomap = function(data, nbhd_size=NULL, d=2, method='eps', embed='kruskal', iter=30, weight='equal'){
+  #
   # method = 'eps' for eps-neighborhood graph 
-  #         'knn' for k-nearest neighbors graph
   # embed = 'cmds' for classical multidimensional scaling
   #       = 'kruskal' for raw stress criterion, iter= number of iterations for the optimization
+  # weight = 'equal' for w_ij = 1 for all i,j
+  #        =  W, nxn weight matrix with custom desired weights
+  #       =  'sammon' for w_ij = 1/δ_ij
+  #
   X = data
   n = nrow(X)
   Delta_E = as.matrix(dist(X, diag = TRUE, upper = TRUE)) #Find pairwise straight line distances 
   if (method == 'eps'){
     eps = nbhd_size
     Delta_E[Delta_E  > eps] = Inf # Replace values greater than eps with infinity
-  }
-  if (method == 'knn'){
-    k = nbhd_size
-    ## work in progress
   }
   Delta_G = Delta_E
   ## Find the shortest path between the points i&j in the epsilon graph
@@ -73,23 +100,36 @@ isomap = function(data, nbhd_size=NULL, method='eps', embed='kruskal', d, iter=3
     Delta_G = E
     m = 2*m
   }
-  # save a list of coordinates of the configuration contructed by CMDS and the eigenvalues corresponding to each dimension
+  # Find the principal coordinates of the data with dissimilarity matrix Delta_G. 
   Z = cmdscale(Delta_G, d, eig=TRUE) 
-  Z0 = Z$points
+  Z0 = Z$points #Exract the first d principal coordinates
   if (embed == 'kruskal'){
-    for (j in 1:iter){
-      Z0 = mds.guttman.eq(Z0,Delta_G) #Gutmann majorization to improve the embedding
-    } 
+      if (weight == 'equal'){
+        for (j in 1:iter){
+          Z0 = mds.guttman.eq(Z0,Delta_G) #Gutmann transformation with equal weights
+        }
+      }
   }
-  euc_dim = sum(Z$eig >0) # Find the number of dimensions required to preserve the euclidean structure of Delta_G
+  euc_dim= sum(Z$eig >0) # Find the sum of the variance preserved by a Euclidean representation of Delta_G
   cumulative_variances = seq(1, euc_dim)
   for (i in 1:euc_dim){
     cumulative_variances[i] = sum(Z$eig[1:i])/sum(abs(Z$eig))
   }
-  output = list(points=Z0, preserved_variance=cumulative_variances[d], cumulative_variances = cumulative_variances) 
+  output = list(points=Z0, explained_variance=cumulative_variances[d], cumulative_variances = cumulative_variances) 
   return(output)
 }
 ```
+
+## Design choices 
+- There are different ways to find the shortest path distances between each pair of points. 
+    - We could alternatively use Dijkstra’s algorithm or Breadth-First Search (BFS) etc.
+- We only give two options for the weights: either equal weights or null. When it is null, we return the representation found by CMDS, when weight == 'equal', then we use the representation found by CMDS as our initialization and apply Gutmann majorization with $w_{ij} = 1$ for all $i,j$.
+    - We could alternatively use a different optimization method. 
+- We save the explained variance by d-dimensional representation as a proportion of the total variance of the dissimilarities constructed by the epsilon neighborhood graph.
+- We save the explained cumulative variances as a proportion of the total variance for each additional principal component. Note that the overall structure might not be Euclidean. 
+    - We could alternatively return the proportion of the Euclidean structure. The number of dimensions of the representation can be decided by looking at these proportions for each value of d. These proportions are independent from the initial choice of d.
+- We return the coordinates of the d-dimensional representation, explained variance by these d dimensions and explained cumulative variances for each additional dimension (of the Euclidean structure of the data).
+    - We could add more elements to the output. 
 
 
 ## Examples
@@ -98,7 +138,7 @@ isomap = function(data, nbhd_size=NULL, method='eps', embed='kruskal', d, iter=3
 $\phi(u)=(3^u \cos(8u), 3^u \sin(8u))$ for $0 \leq u \leq 1$
 
 ```{r}
-n0 = 300
+n0 = 600
 set.seed(111)
 spiral = data.frame(x = numeric(n0),
                        y = numeric(n0))
@@ -113,11 +153,41 @@ plot(spiral, asp=1, pch=20)
 spiral2 = isomap(data=spiral, nbhd_size=0.4, d=2)
 plot(spiral2$points, pch=20, main="Spiral", asp=1)
 plot(seq(1,5), spiral2$cumulative_variances[1:5], ylim=c(0,1), pch=20,
-      main="Preserved variances vs dimension (cumulative)",
+      main="Explained variances vs dimension (cumulative)",
       xlab="Dimension",
       ylab="Percentage")
+print(paste("Explained variance in 2 dimensions: ", round(spiral2$explained_variance*100, 3), "%"))
 ```
 
+
+# Circle with noise
+
+$\gamma(t) = (\cos(8t), \sin(8t))$ for $0\leq t \leq 1$. 
+
+```{r}
+n2 = 400
+S = data.frame(x = numeric(n2),
+               y = numeric(n2),
+               z = numeric(n2))
+for (i in 1:n2){
+  t = runif(1, 0, 2*pi)
+  eps = 0.05 #noise
+  S$x[i] = cos(t)+rnorm(1,0,eps)
+  S$y[i] = sin(t)+rnorm(1,0,eps)
+  S$z[i] = rnorm(1,0,eps)
+}
+
+plot(S, asp=1, pch=20)
+```
+```{r}
+S1 = isomap(S, nbhd_size=0.5, d=2, embed='kruskal', method='eps')
+plot(S1$points, asp=1, pch=20, main="2-D representation of data near Circle")
+plot(seq(1,10), ylim=c(0,1), S1$cumulative_variances[1:10], pch=20, main="Explained variances vs dimension (cumulative)",
+     xlab="Dimension",
+     ylab="Percentage")
+
+print(paste("Explained variance in 2 dimensions: ", round(S1$explained_variance*100, 3), "%"))
+```
 
 
 ### Rectangular annulus
@@ -137,49 +207,25 @@ for (i in 1:n1) {
   R <- rbind(R,c(x1,y1),c(x2,y2),c(x3,y3),c(x4,y4))
 }
 plot(R, main="Original data", pch=20, asp=1)
-
-R1 = isomap(R, nbhd_size = 0.5, d=2, embed = 'kruskal')
-plot(R1$points, pch=20, main="2-D representation of Rectangular annulus")
-plot(seq(1,10), R1$cumulative_variances[1:10], asp=1, ylim=c(0,1), pch=20, main="Preserved variances vs dimension (cumulative)",
-     xlab="Dimension",
-     ylab="Percentage")
 ```
-
-
-
-
-# Circle with noise
-
-$\gamma(t) = (\cos(8t), \sin(8t))$ for $0\leq t \leq 1$. 
-
 ```{r}
-n2 = 200
-S = data.frame(x = numeric(n2),
-               y = numeric(n2),
-               z = numeric(n2))
-for (i in 1:n2){
-  t = runif(1, 0, 1)
-  eps = 0.01 #noise
-  S$x[i] = cos(8*t)+rnorm(1,0,eps)
-  S$y[i] = sin(8*t)+rnorm(1,0,eps)
-  S$z[i] = rnorm(1,0,eps)
-}
-
-plot(S, asp=1, pch=20)
-
-S1 = isomap(S, nbhd_size=0.5, d=2, embed='kruskal', method='eps')
-plot(S1$points, asp=1, pch=20, main="2-D representation of data near Circle")
-plot(seq(1,10), ylim=c(0,1), S1$cumulative_variances[1:10], pch=20, main="Preserved variances vs dimension (cumulative)",
+R1 = isomap(R, nbhd_size = 0.5, d=2, embed = 'kruskal')
+plot(R1$points, pch=20, main="2-D representation of Rectangular annulus", asp=1)
+plot(seq(1,10), R1$cumulative_variances[1:10], ylim=c(0,1), pch=20, main="Explained variances vs dimension (cumulative)",
      xlab="Dimension",
      ylab="Percentage")
+
+print(paste("Explained variance in 2 dimensions: ", round(R1$explained_variance*100, 3), "%"))
 ```
 
-# On Torus
+
+
+# Torus
 $\tau(u,v)= ((R+r\cos(u))\cos(v),(R+r\cos(u))\sin(v), r\sin(u))$ for $0\leq u \leq \pi$ and $0\leq v \leq \frac{\pi}{2}$
 ```{r}
 R=1
 r=0.5
-n3 = 300
+n3 = 1000
 Torus = data.frame(x = numeric(n3),
                    y = numeric(n3),
                    z = numeric(n3))
@@ -192,13 +238,46 @@ for (i in 1:n3){
 }
 
 scatterplot3d(Torus, pch=20)
-plot(Torus, pch=20)
+plot(Torus, pch=20, asp=1)
+```
 
-T2 = isomap(Torus, nbhd_size=0.5, d=2, embed='kruskal')
+```{r}
+T2 = isomap(Torus, nbhd_size=0.35, d=2, embed='kruskal', weight = 'sammon')
 plot(T2$points, asp=1, pch=20, main="2-D representation of data on Torus")
-plot(seq(1,10), ylim=c(0,1), T2$cumulative_variances[1:10], pch=20, main="Preserved variances vs dimension (cumulative)",
+plot(seq(1,10), ylim=c(0,1), T2$cumulative_variances[1:10], pch=20, main="Explained variances vs dimension (cumulative)",
      xlab="Dimension",
-     ylab="Percentage"))
+     ylab="Percentage")
+
+print(paste("Explained variance in 2 dimensions: ", round(T2$explained_variance*100, 3), "%"))
+```
+
+```{r}
+R=0.1
+r=0.05
+n3 = 2500
+Torus = data.frame(x = numeric(n3),
+                   y = numeric(n3),
+                   z = numeric(n3))
+for (i in 1:n3){
+  u = runif(1, 0, 2*pi)
+  v = runif(1, 0, 2*pi)
+  Torus$x[i] = (R+r*cos(u))*cos(v)
+  Torus$y[i] = (R+r*cos(u))*sin(v)
+  Torus$z[i] = r*sin(u)
+}
+
+scatterplot3d(Torus, pch=20)
+plot(Torus, pch=20, asp=1)
+```
+
+```{r}
+T2 = isomap(Torus, nbhd_size=0.04, d=2, embed='kruskal')
+plot(T2$points, asp=1, pch=20, main="2-D representation of data on Torus")
+plot(seq(1,10), ylim=c(0,1), T2$cumulative_variances[1:10], pch=20, main="Explained variances vs dimension (cumulative)",
+     xlab="Dimension",
+     ylab="Percentage")
+
+print(paste("Explained variance in 2 dimensions: ", round(T2$explained_variance*100, 3), "%"))
 ```
 
 
@@ -211,7 +290,9 @@ https://web.mit.edu/cocosci/isomap/BdSLT.pdf, December 20, 2000.
 hypothesis. Psychometrika, 29:1{27, 1964.
 
 3. J. B. Tenenbaum, V. de Silva, and J. C. Langford. A global geometric framework
-for nonlinear dimensionality reduction. Science, 290:2319{2323, 2000.
+for nonlinear dimensionality reduction. Science, 290:2319–2323, 2000.
 
-4. Rehabilitating Isomap: Euclidean Representation of Geodesic Structure
+4. Michael W. Trosset, Proximity in Dimension Reduction, Clustering, and Classification
+
+5. Rehabilitating Isomap: Euclidean Representation of Geodesic Structure
 Michael W. Trosset, Gokcen Buyukbas, 	arXiv:2006.10858 (preprint)
