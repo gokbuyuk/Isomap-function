@@ -1,5 +1,5 @@
 ---
-title: "S610-Final_Project_pdf"
+title: "Dimension Reduction with Isomap"
 author: "Gokcen Buyukbas, Jared Roush"
 date: "12/9/2020"
 output:
